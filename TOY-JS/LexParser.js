@@ -14,8 +14,11 @@ class XRegExp{
         let length = 0;
         let regexp = source[name].replace(/\<([^>]+)\>/g,(str,$1)=>{
             this.table.set(start + length.$1);
+            
             ++length;
+
             let r = this.compileRegExp(source,$1,start + length);
+            
             length += r.length;
             return "(" + r.source + ")";
         });
@@ -76,6 +79,11 @@ export function* scan(str){
             yield{
                 type: "BooleanLiteral",
                 value: r[0]
+            }
+        }else if(r.StringLiteral){
+            yield{
+                type: "StringLiteral",
+                value :r[0]
             }
         }else if(r.NullLiteral){
             yield{

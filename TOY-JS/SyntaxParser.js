@@ -10,13 +10,33 @@ let syntax = {
         ["ExpressionStatement"],
         ["IfStatement"],
         ["VariableDeclaration"],
+        ["FunctionDeclaration"],
+        ["Block"],
+        ["BreakStatement"],
+        ["ContinueStatement"],
         ["FunctionDeclaration"]
+    ],
+    FunctionDeclaration:[
+        ["function","Identifier","(",")","{","StatementList","}"]
+    ],
+    BreakStatement:[
+        ["break",";"]
+    ],
+    ContinueStatement:[
+        ["continue",";"]
+    ],
+    Block:[
+        ["{","StatementList","}"],
+        ["{","}"]
+    ],
+    WhileStatement:[
+        ["while","(","Expression",")","Statement"]
     ],
     IfStatement: [
         ["if","(","Expression",")",Statement]
     ],
     VariableDeclaration: [
-        ["var","Identifier",";"],
+        // ["var","Identifier",";"],
         ["let","Identifier",";"]
     ],
     FunctionDeclaration: [
@@ -24,6 +44,17 @@ let syntax = {
     ],
     ExpressionStatement: [
         ["Expression",";"]
+    ],
+    Expression:[
+        ["AssignmentExpression"]
+    ],
+    AssignmentExpression:[
+        ["LeftHandSideExpression","=","LogicalORExpression"],
+        ["LogicalORExpression"]
+    ],
+    LogicalANDExpression:[
+        ["AdditiveExpression"],
+        ["LogicalANDExpression","&&","AdditiveExpression"]
     ],
     AdditiveExpression: [
         ["MultiplicativeExpression"],
@@ -35,13 +66,56 @@ let syntax = {
         ["MultiplicativeExpression","*","PrimaryExpression"],
         ["MultiplicativeExpression","/","PrimaryExpression"]
     ],
+    LeftHandSideExpression:[
+        ["CallExpression"],
+        ["NewExpression"]
+    ],
+    CallExpression:[
+        ["MemberExpression","Arguments"],
+        ["CallExpression","Arguments"]
+    ],
+    Arguments:[
+        ["(",")"],
+        ["(","ArgumentList",")"]
+    ],
+    ArgumentList:[
+        ["AssignmentExpression"],
+        ["ArgumentList",",","AssignmentExpression"]
+    ],
+    NewExpression:[
+        ["MemberExpression"],
+        ["new","NewExpression"]
+    ],
+    MemberExpression:[
+        ["PrimaryExpression"]
+        ["PrimaryExpression",".","Identifier"],
+        ["PrimaryExpression","[","Expression","]"]
+    ],
     PrimaryExpression: [
         ["(","Expression",")"],
         ["Literal"],
         ["Identifier"]
     ],
     Literal: [
-        ["Number"]
+        ["NumericLiteral"],
+        ["StringLiteral"],
+        ["BooleanLiteral"],
+        ["NullLiteral"],
+        ["RegularExpressionLiteral"],
+        ["ObjectLiteral"],
+        ["ArrayLiteral"],
+    ],
+    ObjectLiteral:[
+        ["{","}"],
+        ["{","PropertyList","}"]
+    ],
+    PropertyList:[
+        ["Property"],
+        ["PropertyList",",","Property"]
+    ],
+    Property:[
+        ["StringLiteral",":","AdditiveExpression"],
+        ["Identifier",":","AdditiveExpression"]
     ]
 }
 
@@ -54,13 +128,12 @@ function closure(state){
     let queue = [];
     for(let symbol in state){
         if(symbol.match(/^$/)){
-            return;
+            continue;
         }
         queue.push(symbol);
     }
     while(queue.length){
         let symbol = queue.shift();
-
         if(syntax[symbol]){
             for(let rule of syntax[symbol]){
                 if(!state[rule[0]])
@@ -78,7 +151,7 @@ function closure(state){
     }
     for(let symbol in state){
         if(symbol.match(/^$/)){
-            return;
+            continue;
         }
         if(hash[JSON.stringify(state[symbol])])
             state[symbol] = hash[JSON.stringify(state[symbol])];
@@ -96,40 +169,41 @@ let start = {
 
 closure(start);
 
-let source = `
-    var a;
-`
-
-function parse(source){
+export function parse(source){
     let stack = [start];
+    let symbolStack = [];
     function reduce(){
         let state = stack[stack.length - 1];
 
         if(state.$reduceType){
             let children = [];
-            for(let i;i < state.$reduceLength;i++){
-                children.push(stack.pop());
+            for(let i = 0;i < state.$reduceLength;i++){
+                stack.pop()
+                children.push(symbolStack.pop());
             }
 
-            shift({
-                type: state.$reduceType,
-                children: children.reverse()
-            });
+            return{
+                type:state.$reduceType,
+                children:children.reverse()
+            };
+        }else{
+            throw new Error("unexpected token");
         }
     }
     function shift(symbol){
         let state = stack[stack.length - 1];
         
         if(symbol.type in state){
-            stack.push(symbol);
+            stack.push(state[symbol.type]);
+            symbolStack.push(symbol);
         }else{
-            reduce();
+            shift(reduce());
             shift(symbol)
         }
     }
     for(let symbol/*terminal symbols*/ of scan(source)){
         shift(symbol);
     }
-}
 
-parse(source);
+    return reduce();
+}
