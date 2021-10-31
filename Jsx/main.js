@@ -17,26 +17,44 @@ class Carousel extends Component{
             this.root.appendChild(child);
         }
 
+        let position = 0;
+
         this.root.addEventListener("mousedown",event => {
-            console.log("mousedown");
+            let children = this.root.children;
+            let startX = event.clientX;
 
             let move = event =>{
-                console.log("mousemove");
+                let x = event.clientX - startX;
+
+                let current = position - ((x - x % 500) / 500);
+
+                for(let offset of [-1,0,1]){
+                    let pos = current + offset;
+                    pos = (pos + children.length) % children.length;
+
+                    children[pos].style.transition = "none";
+                    children[pos].style.transform = `translate(${- pos * 500 + offset * 500 + x % 500}px)`;
+                }
             }
 
             let up = event =>{
-                console.log("mousemove");
-                this.root.removeEventListener("mousemove",move);
-                this.root.removeEventListener("mouseup",up);
+                let x = event.clientX - startX;
+                position = position - Math.round(x / 500);
+
+                for(let offset of [0,-Math.sign(Math.round(x / 500) - x + 250 * Math.sign(x))]){
+                    let pos = position + offset;
+                    pos = (pos + children.length) % children.length;
+                    
+                    children[pos].style.transition = "none";
+                    children[pos].style.transform = `translate(${- pos * 500 + offset * 500}px)`;
+                }
+
+                document.removeEventListener("mousemove",move);
+                document.removeEventListener("mouseup",up);
             }
 
-            this.root.addEventListener("mousemove",event => {
-                console.log("mousemove");
-            })
-    
-            this.root.addEventListener("mouseup",event => {
-                console.log("mouseup");
-            })
+            document.addEventListener("mousemove",move);
+            document.addEventListener("mouseup",up);
         })
 
         /*let currentIndex = 0;
